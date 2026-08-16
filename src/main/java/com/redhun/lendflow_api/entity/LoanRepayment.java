@@ -25,13 +25,25 @@ public class LoanRepayment {
     @JoinColumn(name = "loan_id", nullable = false)
     private Loan loan;
 
-    @Column(nullable = false, precision = 15, scale = 2)
+    @Column(
+            nullable = false,
+            precision = 15,
+            scale = 2
+    )
     private BigDecimal amount;
 
-    @Column(precision = 15, scale = 2)
+    @Column(
+            nullable = false,
+            precision = 15,
+            scale = 2
+    )
     private BigDecimal principalAmount;
 
-    @Column(precision = 15, scale = 2)
+    @Column(
+            nullable = false,
+            precision = 15,
+            scale = 2
+    )
     private BigDecimal interestAmount;
 
     @Enumerated(EnumType.STRING)

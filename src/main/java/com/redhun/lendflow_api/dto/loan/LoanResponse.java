@@ -1,6 +1,5 @@
 package com.redhun.lendflow_api.dto.loan;
 
-
 import com.redhun.lendflow_api.enums.LoanStatus;
 
 import java.math.BigDecimal;
@@ -20,17 +19,21 @@ public record LoanResponse(
 
         BigDecimal interestRate,
 
-        BigDecimal totalInterest,
+        BigDecimal accruedInterest,
 
         BigDecimal totalPayable,
 
         BigDecimal totalPaid,
 
+        BigDecimal outstandingPrincipal,
+
+        BigDecimal outstandingInterest,
+
         BigDecimal outstandingAmount,
 
         LocalDate startDate,
 
-        LocalDate dueDate,
+        LocalDate lastInterestAccruedDate,
 
         LoanStatus status
 ) {

@@ -1,6 +1,5 @@
 package com.redhun.lendflow_api.service;
 
-
 import com.redhun.lendflow_api.dto.loan.CreateLoanRequest;
 import com.redhun.lendflow_api.dto.loan.CreateRepaymentRequest;
 import com.redhun.lendflow_api.dto.loan.LoanResponse;
@@ -18,10 +17,14 @@ public interface LoanService {
 
     List<LoanResponse> getUserLoans(Long userId);
 
+    LoanResponse accrueInterest(Long loanId);
+
     RepaymentResponse createRepayment(
             Long loanId,
             CreateRepaymentRequest request
     );
 
     List<RepaymentResponse> getLoanRepayments(Long loanId);
+
+    List<RepaymentResponse> getUserRepayments(Long userId);
 }

@@ -38,7 +38,7 @@ public record LoanReportResponse(
 
         LocalDate startDate,
 
-        LocalDate dueDate,
+
 
         LoanStatus status
 ) {

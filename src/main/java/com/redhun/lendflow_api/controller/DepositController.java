@@ -6,6 +6,7 @@ import com.redhun.lendflow_api.service.DepositService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,6 +18,7 @@ public class DepositController {
 
     private final DepositService depositService;
 
+    @PreAuthorize("hasAnyRole('ADMIN')")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public DepositResponse createDeposit(
@@ -24,21 +26,21 @@ public class DepositController {
     ) {
         return depositService.createDeposit(request);
     }
-
+    @PreAuthorize("hasAnyRole('ADMIN', 'MEMBER')")
     @GetMapping("/{id}")
     public DepositResponse getDeposit(
             @PathVariable Long id
     ) {
         return depositService.getDeposit(id);
     }
-
+    @PreAuthorize("hasAnyRole('ADMIN', 'MEMBER')")
     @GetMapping("/user/{userId}")
     public List<DepositResponse> getUserDeposits(
             @PathVariable Long userId
     ) {
         return depositService.getUserDeposits(userId);
     }
-
+    @PreAuthorize("hasAnyRole('ADMIN')")
     @PostMapping("/{id}/add-money")
     public DepositResponse addMoney(
             @PathVariable Long id,
@@ -46,7 +48,7 @@ public class DepositController {
     ) {
         return depositService.addMoney(id, request);
     }
-
+    @PreAuthorize("hasAnyRole('ADMIN')")
     @PostMapping("/{id}/close")
     public DepositResponse closeDeposit(
             @PathVariable Long id

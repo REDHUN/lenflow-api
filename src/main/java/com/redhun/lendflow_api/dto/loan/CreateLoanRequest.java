@@ -20,8 +20,7 @@ public record CreateLoanRequest(
         BigDecimal interestRate,
 
         @NotNull
-        LocalDate startDate,
+        LocalDate startDate
 
-        LocalDate dueDate
 ) {
 }

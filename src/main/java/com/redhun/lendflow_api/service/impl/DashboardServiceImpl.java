@@ -5,14 +5,12 @@ import com.redhun.lendflow_api.entity.Deposit;
 import com.redhun.lendflow_api.entity.DepositTransaction;
 import com.redhun.lendflow_api.entity.FinancialTransaction;
 import com.redhun.lendflow_api.entity.Loan;
-import com.redhun.lendflow_api.entity.LoanRepayment;
 import com.redhun.lendflow_api.enums.DepositStatus;
 import com.redhun.lendflow_api.enums.LoanStatus;
 import com.redhun.lendflow_api.enums.TransactionType;
 import com.redhun.lendflow_api.repository.DepositRepository;
 import com.redhun.lendflow_api.repository.DepositTransactionRepository;
 import com.redhun.lendflow_api.repository.FinancialTransactionRepository;
-import com.redhun.lendflow_api.repository.LoanRepaymentRepository;
 import com.redhun.lendflow_api.repository.LoanRepository;
 import com.redhun.lendflow_api.repository.UserRepository;
 import com.redhun.lendflow_api.service.DashboardService;
@@ -27,22 +25,35 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class DashboardServiceImpl implements DashboardService {
+public class DashboardServiceImpl
+        implements DashboardService {
 
     private final UserRepository userRepository;
+
     private final DepositRepository depositRepository;
-    private final DepositTransactionRepository depositTransactionRepository;
+
+    private final DepositTransactionRepository
+            depositTransactionRepository;
+
     private final LoanRepository loanRepository;
-    private final LoanRepaymentRepository loanRepaymentRepository;
-    private final FinancialTransactionRepository financialTransactionRepository;
-    private final FinancialTransactionService financialTransactionService;
+
+    private final FinancialTransactionRepository
+            financialTransactionRepository;
+
+    private final FinancialTransactionService
+            financialTransactionService;
+
+
+    // =====================================================
+    // ADMIN DASHBOARD
+    // =====================================================
 
     @Override
     public DashboardResponse getAdminDashboard() {
 
-        // =====================================================
+        // =================================================
         // USERS
-        // =====================================================
+        // =================================================
 
         long totalUsers =
                 userRepository.count();
@@ -51,9 +62,9 @@ public class DashboardServiceImpl implements DashboardService {
                 userRepository.countByActiveTrue();
 
 
-        // =====================================================
+        // =================================================
         // DEPOSITS
-        // =====================================================
+        // =================================================
 
         long totalDeposits =
                 depositRepository.count();
@@ -71,20 +82,24 @@ public class DashboardServiceImpl implements DashboardService {
         List<Deposit> deposits =
                 depositRepository.findAll();
 
+
         BigDecimal totalDepositedHistorically =
                 calculateTotalDepositedHistorically(
                         deposits
                 );
+
 
         BigDecimal activeDepositPrincipal =
                 calculateActiveDepositPrincipal(
                         deposits
                 );
 
+
         BigDecimal depositPrincipalReturned =
                 calculateDepositPrincipalReturned(
                         deposits
                 );
+
 
         BigDecimal depositInterestPaid =
                 calculateDepositInterestPaid(
@@ -92,9 +107,9 @@ public class DashboardServiceImpl implements DashboardService {
                 );
 
 
-        // =====================================================
+        // =================================================
         // LOANS
-        // =====================================================
+        // =================================================
 
         long totalLoans =
                 loanRepository.count();
@@ -114,90 +129,162 @@ public class DashboardServiceImpl implements DashboardService {
                         LoanStatus.CLOSED
                 );
 
+
         List<Loan> loans =
                 loanRepository.findAll();
 
 
+        // =================================================
+        // TOTAL ORIGINAL LOAN PRINCIPAL
+        // =================================================
+
         BigDecimal totalLoanPrincipal =
                 loans.stream()
                         .map(Loan::getPrincipalAmount)
+                        .filter(amount ->
+                                amount != null
+                        )
                         .reduce(
                                 BigDecimal.ZERO,
                                 BigDecimal::add
                         );
 
+
+        // =================================================
+        // TOTAL INTEREST ACCRUED
+        // =================================================
 
         BigDecimal totalLoanInterest =
                 loans.stream()
-                        .map(Loan::getTotalInterest)
+                        .map(Loan::getTotalInterestAccrued)
+                        .filter(amount ->
+                                amount != null
+                        )
                         .reduce(
                                 BigDecimal.ZERO,
                                 BigDecimal::add
                         );
 
 
-        BigDecimal totalLoanRepaid =
-                loanRepaymentRepository
-                        .findAll()
-                        .stream()
-                        .map(LoanRepayment::getAmount)
-                        .reduce(
-                                BigDecimal.ZERO,
-                                BigDecimal::add
-                        );
-
-
-        // =====================================================
-        // ACTUAL INTEREST RECEIVED
-        // =====================================================
+        // =================================================
+        // INTEREST ACTUALLY RECEIVED
+        // =================================================
 
         BigDecimal loanInterestReceived =
-                loanRepaymentRepository
-                        .findAll()
-                        .stream()
-                        .map(LoanRepayment::getInterestAmount)
-                        .filter(amount -> amount != null)
+                loans.stream()
+                        .map(Loan::getTotalInterestPaid)
+                        .filter(amount ->
+                                amount != null
+                        )
                         .reduce(
                                 BigDecimal.ZERO,
                                 BigDecimal::add
                         );
 
 
-        // =====================================================
+        // =================================================
         // PRINCIPAL OUTSTANDING
-        // =====================================================
+        // =================================================
 
         BigDecimal loanPrincipalOutstanding =
-                calculateLoanPrincipalOutstanding(
-                        loans
-                );
+                loans.stream()
+                        .map(
+                                Loan::getOutstandingPrincipal
+                        )
+                        .filter(amount ->
+                                amount != null
+                        )
+                        .reduce(
+                                BigDecimal.ZERO,
+                                BigDecimal::add
+                        );
 
 
-        // =====================================================
+        // =================================================
+        // TOTAL LOAN REPAID
+        //
+        // Principal paid + interest paid
+        // =================================================
+
+        BigDecimal totalLoanRepaid =
+                loans.stream()
+                        .map(loan -> {
+
+                            BigDecimal principalPaid =
+                                    loan.getTotalPrincipalPaid();
+
+                            BigDecimal interestPaid =
+                                    loan.getTotalInterestPaid();
+
+                            if (principalPaid == null) {
+                                principalPaid =
+                                        BigDecimal.ZERO;
+                            }
+
+                            if (interestPaid == null) {
+                                interestPaid =
+                                        BigDecimal.ZERO;
+                            }
+
+                            return principalPaid
+                                    .add(interestPaid);
+                        })
+                        .reduce(
+                                BigDecimal.ZERO,
+                                BigDecimal::add
+                        );
+
+
+        // =================================================
         // TOTAL LOAN OUTSTANDING
-        // =====================================================
+        //
+        // Principal outstanding
+        // +
+        // Interest outstanding
+        // =================================================
 
         BigDecimal totalLoanOutstanding =
                 loans.stream()
-                        .map(this::calculateLoanOutstanding)
+                        .map(loan -> {
+
+                            BigDecimal principal =
+                                    loan.getOutstandingPrincipal();
+
+                            BigDecimal interest =
+                                    loan.getAccruedInterest();
+
+                            if (principal == null) {
+                                principal =
+                                        BigDecimal.ZERO;
+                            }
+
+                            if (interest == null) {
+                                interest =
+                                        BigDecimal.ZERO;
+                            }
+
+                            return principal.add(
+                                    interest
+                            );
+                        })
                         .reduce(
                                 BigDecimal.ZERO,
                                 BigDecimal::add
                         );
 
 
-        // =====================================================
+        // =================================================
         // AVAILABLE BALANCE
-        // =====================================================
+        // =================================================
 
         BigDecimal availableBalance =
                 financialTransactionService
                         .getAvailableBalance();
 
 
-        // =====================================================
+        // =================================================
         // EXPENSES
-        // =====================================================
+        // =================================================
 
         BigDecimal totalExpenses =
                 financialTransactionRepository
@@ -205,16 +292,25 @@ public class DashboardServiceImpl implements DashboardService {
                                 TransactionType.EXPENSE
                         )
                         .stream()
-                        .map(FinancialTransaction::getAmount)
+                        .map(
+                                FinancialTransaction::getAmount
+                        )
+                        .filter(amount ->
+                                amount != null
+                        )
                         .reduce(
                                 BigDecimal.ZERO,
                                 BigDecimal::add
                         );
 
 
-        // =====================================================
+        // =================================================
         // NET PROFIT
-        // =====================================================
+        //
+        // Loan interest received
+        // - Deposit interest paid
+        // - Expenses
+        // =================================================
 
         BigDecimal netProfit =
                 loanInterestReceived
@@ -226,9 +322,9 @@ public class DashboardServiceImpl implements DashboardService {
                         );
 
 
-        // =====================================================
+        // =================================================
         // RESPONSE
-        // =====================================================
+        // =================================================
 
         return new DashboardResponse(
 
@@ -267,71 +363,51 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
 
-    // =========================================================
+    // =====================================================
     // TOTAL HISTORICAL DEPOSITS
-    // =========================================================
+    // =====================================================
 
     private BigDecimal calculateTotalDepositedHistorically(
             List<Deposit> deposits
     ) {
 
-        BigDecimal total =
-                BigDecimal.ZERO;
-
-        for (Deposit deposit : deposits) {
-
-            BigDecimal depositAmount =
-                    calculateTotalDeposit(
-                            deposit
-                    );
-
-            total =
-                    total.add(
-                            depositAmount
-                    );
-        }
-
-        return total;
+        return deposits.stream()
+                .map(
+                        this::calculateTotalDeposit
+                )
+                .reduce(
+                        BigDecimal.ZERO,
+                        BigDecimal::add
+                );
     }
 
 
-    // =========================================================
+    // =====================================================
     // ACTIVE DEPOSIT PRINCIPAL
-    // =========================================================
+    // =====================================================
 
     private BigDecimal calculateActiveDepositPrincipal(
             List<Deposit> deposits
     ) {
 
-        BigDecimal total =
-                BigDecimal.ZERO;
-
-        for (Deposit deposit : deposits) {
-
-            if (deposit.getStatus()
-                    != DepositStatus.ACTIVE) {
-
-                continue;
-            }
-
-            BigDecimal amount =
-                    calculateTotalDeposit(
-                            deposit
-                    );
-
-            total =
-                    total.add(
-                            amount
-                    );
-        }
-
-        return total;
+        return deposits.stream()
+                .filter(deposit ->
+                        deposit.getStatus()
+                                == DepositStatus.ACTIVE
+                )
+                .map(
+                        this::calculateTotalDeposit
+                )
+                .reduce(
+                        BigDecimal.ZERO,
+                        BigDecimal::add
+                );
     }
 
 
-    // =========================================================
+    // =====================================================
     // DEPOSIT PRINCIPAL RETURNED
-    // =========================================================
+    // =====================================================
 
     private BigDecimal calculateDepositPrincipalReturned(
             List<Deposit> deposits
@@ -342,7 +418,9 @@ public class DashboardServiceImpl implements DashboardService {
                         deposit.getStatus()
                                 == DepositStatus.CLOSED
                 )
-                .map(this::calculateTotalDeposit)
+                .map(
+                        this::calculateTotalDeposit
+                )
                 .reduce(
                         BigDecimal.ZERO,
                         BigDecimal::add
@@ -350,9 +428,9 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
 
-    // =========================================================
+    // =====================================================
     // DEPOSIT INTEREST PAID
-    // =========================================================
+    // =====================================================
 
     private BigDecimal calculateDepositInterestPaid(
             List<Deposit> deposits
@@ -379,9 +457,9 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
 
-    // =========================================================
+    // =====================================================
     // TOTAL DEPOSIT AMOUNT
-    // =========================================================
+    // =====================================================
 
     private BigDecimal calculateTotalDeposit(
             Deposit deposit
@@ -392,122 +470,12 @@ public class DashboardServiceImpl implements DashboardService {
                         deposit.getId()
                 )
                 .stream()
-                .map(DepositTransaction::getAmount)
-                .reduce(
-                        BigDecimal.ZERO,
-                        BigDecimal::add
-                );
-    }
-
-
-    // =========================================================
-    // LOAN PRINCIPAL OUTSTANDING
-    // =========================================================
-
-    private BigDecimal calculateLoanPrincipalOutstanding(
-            List<Loan> loans
-    ) {
-
-        BigDecimal total =
-                BigDecimal.ZERO;
-
-        for (Loan loan : loans) {
-
-            BigDecimal totalPaid =
-                    calculateTotalPaid(
-                            loan.getId()
-                    );
-
-            BigDecimal interestPaid =
-                    loanRepaymentRepository
-                            .findByLoanId(
-                                    loan.getId()
-                            )
-                            .stream()
-                            .map(
-                                    LoanRepayment::getInterestAmount
-                            )
-                            .filter(
-                                    amount -> amount != null
-                            )
-                            .reduce(
-                                    BigDecimal.ZERO,
-                                    BigDecimal::add
-                            );
-
-            BigDecimal principalPaid =
-                    totalPaid.subtract(
-                            interestPaid
-                    );
-
-            BigDecimal principalOutstanding =
-                    loan.getPrincipalAmount()
-                            .subtract(
-                                    principalPaid
-                            );
-
-            if (principalOutstanding.compareTo(
-                    BigDecimal.ZERO
-            ) < 0) {
-
-                principalOutstanding =
-                        BigDecimal.ZERO;
-            }
-
-            total =
-                    total.add(
-                            principalOutstanding
-                    );
-        }
-
-        return total;
-    }
-
-
-    // =========================================================
-    // TOTAL LOAN OUTSTANDING
-    // =========================================================
-
-    private BigDecimal calculateLoanOutstanding(
-            Loan loan
-    ) {
-
-        BigDecimal totalPaid =
-                calculateTotalPaid(
-                        loan.getId()
-                );
-
-        BigDecimal outstanding =
-                loan.getTotalPayable()
-                        .subtract(
-                                totalPaid
-                        );
-
-        if (outstanding.compareTo(
-                BigDecimal.ZERO
-        ) < 0) {
-
-            return BigDecimal.ZERO;
-        }
-
-        return outstanding;
-    }
-
-
-    // =========================================================
-    // TOTAL LOAN PAID
-    // =========================================================
-
-    private BigDecimal calculateTotalPaid(
-            Long loanId
-    ) {
-
-        return loanRepaymentRepository
-                .findByLoanId(
-                        loanId
+                .map(
+                        DepositTransaction::getAmount
                 )
-                .stream()
-                .map(LoanRepayment::getAmount)
+                .filter(amount ->
+                        amount != null
+                )
                 .reduce(
                         BigDecimal.ZERO,
                         BigDecimal::add
