@@ -12,6 +12,7 @@ public interface DepositService {
     DepositResponse createDeposit(CreateDepositRequest request);
 
     DepositResponse getDeposit(Long id);
+    List<DepositResponse>getAllDeposits();
 
     List<DepositResponse> getUserDeposits(Long userId);
 

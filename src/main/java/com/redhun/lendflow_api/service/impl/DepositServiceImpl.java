@@ -144,6 +144,14 @@ public class DepositServiceImpl implements DepositService {
         return buildResponse(deposit);
     }
 
+    @Override
+    public List<DepositResponse> getAllDeposits() {
+        return depositRepository.findAll()
+                .stream()
+                .map(this::buildResponse)
+                .toList();
+    }
+
 
     // =========================================================
     // GET USER DEPOSITS
