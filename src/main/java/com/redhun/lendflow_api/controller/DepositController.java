@@ -18,6 +18,13 @@ public class DepositController {
 
     private final DepositService depositService;
 
+    @PreAuthorize("hasAnyRole('ADMIN', 'MEMBER')")
+    @GetMapping
+    public List<DepositResponse> getAllDeposits() {
+
+        return depositService.getAllDeposits();
+    }
+
     @PreAuthorize("hasAnyRole('ADMIN')")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
