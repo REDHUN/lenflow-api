@@ -2,6 +2,7 @@ package com.redhun.lendflow_api.controller;
 import com.redhun.lendflow_api.dto.desposit.AddDepositMoneyRequest;
 import com.redhun.lendflow_api.dto.desposit.CreateDepositRequest;
 import com.redhun.lendflow_api.dto.desposit.DepositResponse;
+import com.redhun.lendflow_api.dto.desposit.DepositTransactionResponse;
 import com.redhun.lendflow_api.service.DepositService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -61,5 +62,16 @@ public class DepositController {
             @PathVariable Long id
     ) {
         return depositService.closeDeposit(id);
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'MEMBER')")
+    @GetMapping("/{depositId}/transactions")
+    public List<DepositTransactionResponse> getDepositTransactions(
+            @PathVariable Long depositId
+    ) {
+
+        return depositService.getDepositTransactions(
+                depositId
+        );
     }
 }

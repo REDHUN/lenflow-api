@@ -3,6 +3,7 @@ package com.redhun.lendflow_api.service.impl;
 import com.redhun.lendflow_api.dto.desposit.AddDepositMoneyRequest;
 import com.redhun.lendflow_api.dto.desposit.CreateDepositRequest;
 import com.redhun.lendflow_api.dto.desposit.DepositResponse;
+import com.redhun.lendflow_api.dto.desposit.DepositTransactionResponse;
 import com.redhun.lendflow_api.entity.Deposit;
 import com.redhun.lendflow_api.entity.DepositTransaction;
 import com.redhun.lendflow_api.entity.FinancialTransaction;
@@ -400,6 +401,37 @@ public class DepositServiceImpl implements DepositService {
 
 
         return buildResponse(deposit);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DepositTransactionResponse> getDepositTransactions(
+            Long depositId
+    ) {
+
+        Deposit deposit =
+                depositRepository.findById(depositId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Deposit not found with id: "
+                                                + depositId
+                                )
+                        );
+
+        return transactionRepository
+                .findByDepositId(depositId)
+                .stream()
+                .map(transaction ->
+                        new DepositTransactionResponse(
+                                transaction.getId(),
+                                deposit.getId(),
+                                deposit.getDepositNumber(),
+                                transaction.getAmount(),
+                                transaction.getTransactionDate()
+
+                        )
+                )
+                .toList();
     }
 
 

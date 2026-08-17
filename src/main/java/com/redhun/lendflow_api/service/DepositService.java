@@ -4,6 +4,7 @@ package com.redhun.lendflow_api.service;
 import com.redhun.lendflow_api.dto.desposit.AddDepositMoneyRequest;
 import com.redhun.lendflow_api.dto.desposit.CreateDepositRequest;
 import com.redhun.lendflow_api.dto.desposit.DepositResponse;
+import com.redhun.lendflow_api.dto.desposit.DepositTransactionResponse;
 
 import java.util.List;
 
@@ -22,4 +23,8 @@ public interface DepositService {
     );
 
     DepositResponse closeDeposit(Long depositId);
+
+    List<DepositTransactionResponse> getDepositTransactions(
+            Long depositId
+    );
 }
