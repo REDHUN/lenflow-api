@@ -1,5 +1,6 @@
 package com.redhun.lendflow_api.security;
 
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -68,7 +69,6 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
 
-
                         // =========================================
                         // PUBLIC AUTH APIs
                         // =========================================
@@ -96,6 +96,38 @@ public class SecurityConfig {
 
                         .anyRequest()
                         .authenticated()
+                )
+
+
+                // =================================================
+                // AUTHENTICATION ERROR → 401
+                // =================================================
+
+                .exceptionHandling(exception ->
+                        exception.authenticationEntryPoint(
+                                (request, response, authException) -> {
+
+                                    response.setStatus(
+                                            HttpServletResponse.SC_UNAUTHORIZED
+                                    );
+
+                                    response.setContentType(
+                                            "application/json"
+                                    );
+
+                                    response.setCharacterEncoding(
+                                            "UTF-8"
+                                    );
+
+                                    response.getWriter().write("""
+                                        {
+                                            "status": 401,
+                                            "error": "UNAUTHORIZED",
+                                            "message": "Authentication required"
+                                        }
+                                        """);
+                                }
+                        )
                 )
 
 
