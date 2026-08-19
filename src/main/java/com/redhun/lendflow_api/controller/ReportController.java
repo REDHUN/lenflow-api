@@ -1,6 +1,15 @@
 package com.redhun.lendflow_api.controller;
 
-import com.redhun.lendflow_api.dto.reports.*;
+import com.redhun.lendflow_api.dto.reports.DepositReportResponse;
+import com.redhun.lendflow_api.dto.reports.FinancialTransactionReportResponse;
+import com.redhun.lendflow_api.dto.reports.LoanReportResponse;
+import com.redhun.lendflow_api.dto.reports.ProfitReportResponse;
+import com.redhun.lendflow_api.dto.reports.RepaymentReportResponse;
+import com.redhun.lendflow_api.dto.reports.UserFinancialReportResponse;
+import com.redhun.lendflow_api.dto.reports.reportfilter.DepositReportRequest;
+import com.redhun.lendflow_api.dto.reports.reportfilter.FinancialTransactionReportRequest;
+import com.redhun.lendflow_api.dto.reports.reportfilter.LoanReportRequest;
+import com.redhun.lendflow_api.dto.reports.reportfilter.RepaymentReportRequest;
 import com.redhun.lendflow_api.service.ReportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -19,10 +28,12 @@ public class ReportController {
     // LOAN REPORT
     // =========================================================
 
-    @GetMapping("/loans")
-    public List<LoanReportResponse> getLoanReport() {
+    @PostMapping("/loans")
+    public List<LoanReportResponse> getLoanReport(
+            @RequestBody LoanReportRequest request
+    ) {
 
-        return reportService.getLoanReport();
+        return reportService.getLoanReport(request);
     }
 
 
@@ -30,10 +41,12 @@ public class ReportController {
     // DEPOSIT REPORT
     // =========================================================
 
-    @GetMapping("/deposits")
-    public List<DepositReportResponse> getDepositReport() {
+    @PostMapping("/deposits")
+    public List<DepositReportResponse> getDepositReport(
+            @RequestBody DepositReportRequest request
+    ) {
 
-        return reportService.getDepositReport();
+        return reportService.getDepositReport(request);
     }
 
 
@@ -41,24 +54,27 @@ public class ReportController {
     // REPAYMENT REPORT
     // =========================================================
 
-    @GetMapping("/repayments")
-    public List<RepaymentReportResponse>
-    getRepaymentReport() {
+    @PostMapping("/repayments")
+    public List<RepaymentReportResponse> getRepaymentReport(
+            @RequestBody RepaymentReportRequest request
+    ) {
 
-        return reportService.getRepaymentReport();
+        return reportService.getRepaymentReport(request);
     }
 
 
     // =========================================================
-    // FINANCIAL TRANSACTION REPORT
+    // FINANCIAL TRANSACTION / LEDGER REPORT
     // =========================================================
 
-    @GetMapping("/transactions")
+    @PostMapping("/transactions")
     public List<FinancialTransactionReportResponse>
-    getFinancialTransactionReport() {
+    getFinancialTransactionReport(
+            @RequestBody FinancialTransactionReportRequest request
+    ) {
 
         return reportService
-                .getFinancialTransactionReport();
+                .getFinancialTransactionReport(request);
     }
 
 

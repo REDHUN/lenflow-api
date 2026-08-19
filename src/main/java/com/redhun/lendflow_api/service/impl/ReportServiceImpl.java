@@ -1,6 +1,10 @@
 package com.redhun.lendflow_api.service.impl;
 
 import com.redhun.lendflow_api.dto.reports.*;
+import com.redhun.lendflow_api.dto.reports.reportfilter.DepositReportRequest;
+import com.redhun.lendflow_api.dto.reports.reportfilter.FinancialTransactionReportRequest;
+import com.redhun.lendflow_api.dto.reports.reportfilter.LoanReportRequest;
+import com.redhun.lendflow_api.dto.reports.reportfilter.RepaymentReportRequest;
 import com.redhun.lendflow_api.entity.Deposit;
 import com.redhun.lendflow_api.entity.DepositTransaction;
 import com.redhun.lendflow_api.entity.FinancialTransaction;
@@ -22,7 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -53,10 +57,30 @@ public class ReportServiceImpl implements ReportService {
     // =========================================================
 
     @Override
-    public List<LoanReportResponse> getLoanReport() {
+    public List<LoanReportResponse> getLoanReport(
+            LoanReportRequest request
+    ) {
 
         return loanRepository.findAll()
                 .stream()
+                .filter(loan ->
+                        isWithinDateRange(
+                                loan.getStartDate(),
+                                request.fromDate(),
+                                request.toDate()
+                        )
+                )
+                .filter(loan ->
+                        matchesUser(
+                                loan.getUser(),
+                                request.userId()
+                        )
+                )
+                .filter(loan ->
+                        request.status() == null
+                                || loan.getStatus()
+                                == request.status()
+                )
                 .map(this::buildLoanReport)
                 .toList();
     }
@@ -70,19 +94,11 @@ public class ReportServiceImpl implements ReportService {
             Loan loan
     ) {
 
-        // -----------------------------------------------------
-        // Repayments
-        // -----------------------------------------------------
-
         List<LoanRepayment> repayments =
                 repaymentRepository.findByLoanId(
                         loan.getId()
                 );
 
-
-        // -----------------------------------------------------
-        // Total paid
-        // -----------------------------------------------------
 
         BigDecimal totalPaid =
                 repayments.stream()
@@ -94,44 +110,25 @@ public class ReportServiceImpl implements ReportService {
                         );
 
 
-        // -----------------------------------------------------
-        // Interest paid
-        // -----------------------------------------------------
-
         BigDecimal interestPaid =
                 repayments.stream()
-                        .map(
-                                LoanRepayment::getInterestAmount
-                        )
+                        .map(LoanRepayment::getInterestAmount)
                         .filter(value -> value != null)
                         .reduce(
                                 BigDecimal.ZERO,
                                 BigDecimal::add
                         );
 
-
-        // -----------------------------------------------------
-        // Principal paid
-        // -----------------------------------------------------
 
         BigDecimal principalPaid =
                 repayments.stream()
-                        .map(
-                                LoanRepayment::getPrincipalAmount
-                        )
+                        .map(LoanRepayment::getPrincipalAmount)
                         .filter(value -> value != null)
                         .reduce(
                                 BigDecimal.ZERO,
                                 BigDecimal::add
                         );
 
-
-        // -----------------------------------------------------
-        // Current outstanding interest
-        //
-        // accruedInterest =
-        // interest generated but not yet paid
-        // -----------------------------------------------------
 
         BigDecimal interestOutstanding =
                 loan.getAccruedInterest() != null
@@ -139,38 +136,22 @@ public class ReportServiceImpl implements ReportService {
                         : BigDecimal.ZERO;
 
 
-        // -----------------------------------------------------
-        // Current outstanding principal
-        // -----------------------------------------------------
-
         BigDecimal principalOutstanding =
                 loan.getOutstandingPrincipal() != null
                         ? loan.getOutstandingPrincipal()
                         : BigDecimal.ZERO;
 
 
-        // -----------------------------------------------------
-        // Total outstanding
-        // -----------------------------------------------------
-
         BigDecimal totalOutstanding =
                 principalOutstanding
                         .add(interestOutstanding);
 
-
-        // -----------------------------------------------------
-        // Historical interest accrued
-        // -----------------------------------------------------
 
         BigDecimal totalInterestAccrued =
                 loan.getTotalInterestAccrued() != null
                         ? loan.getTotalInterestAccrued()
                         : BigDecimal.ZERO;
 
-
-        // -----------------------------------------------------
-        // Current total payable
-        // -----------------------------------------------------
 
         BigDecimal totalPayable =
                 loan.getTotalPayable() != null
@@ -188,40 +169,28 @@ public class ReportServiceImpl implements ReportService {
 
                 loan.getUser().getName(),
 
-                // Original principal
                 loan.getPrincipalAmount(),
 
-                // Monthly interest rate
                 loan.getInterestRate(),
 
-                // Total interest generated historically
                 totalInterestAccrued,
 
-                // Current total payable
                 totalPayable,
 
-                // Total amount received
                 totalPaid,
 
-                // Interest received
                 interestPaid,
 
-                // Principal received
                 principalPaid,
 
-                // Current interest outstanding
                 interestOutstanding,
 
-                // Current principal outstanding
                 principalOutstanding,
 
-                // Current total outstanding
                 totalOutstanding,
 
-                // Start date
                 loan.getStartDate(),
 
-                // Status
                 loan.getStatus()
         );
     }
@@ -232,10 +201,30 @@ public class ReportServiceImpl implements ReportService {
     // =========================================================
 
     @Override
-    public List<DepositReportResponse> getDepositReport() {
+    public List<DepositReportResponse> getDepositReport(
+            DepositReportRequest request
+    ) {
 
         return depositRepository.findAll()
                 .stream()
+                .filter(deposit ->
+                        isWithinDateRange(
+                                deposit.getStartDate(),
+                                request.fromDate(),
+                                request.toDate()
+                        )
+                )
+                .filter(deposit ->
+                        matchesUser(
+                                deposit.getUser(),
+                                request.userId()
+                        )
+                )
+                .filter(deposit ->
+                        request.status() == null
+                                || deposit.getStatus()
+                                == request.status()
+                )
                 .map(this::buildDepositReport)
                 .toList();
     }
@@ -309,11 +298,36 @@ public class ReportServiceImpl implements ReportService {
     // =========================================================
 
     @Override
-    public List<RepaymentReportResponse>
-    getRepaymentReport() {
+    public List<RepaymentReportResponse> getRepaymentReport(
+            RepaymentReportRequest request
+    ) {
 
         return repaymentRepository.findAll()
                 .stream()
+                .filter(repayment ->
+                        isWithinDateRange(
+                                repayment.getRepaymentDate(),
+                                request.fromDate(),
+                                request.toDate()
+                        )
+                )
+                .filter(repayment ->
+                        matchesUser(
+                                repayment.getLoan().getUser(),
+                                request.userId()
+                        )
+                )
+                .filter(repayment ->
+                        request.loanId() == null
+                                || repayment.getLoan()
+                                .getId()
+                                .equals(request.loanId())
+                )
+                .filter(repayment ->
+                        request.paymentMethod() == null
+                                || repayment.getPaymentMethod()
+                                == request.paymentMethod()
+                )
                 .map(this::buildRepaymentReport)
                 .toList();
     }
@@ -367,14 +381,44 @@ public class ReportServiceImpl implements ReportService {
 
     @Override
     public List<FinancialTransactionReportResponse>
-    getFinancialTransactionReport() {
+    getFinancialTransactionReport(
+            FinancialTransactionReportRequest request
+    ) {
 
         return financialTransactionRepository
                 .findAll()
                 .stream()
-                .map(
-                        this::buildFinancialTransactionReport
+                .filter(transaction ->
+                        isWithinDateRange(
+                                transaction.getTransactionDate(),
+                                request.fromDate(),
+                                request.toDate()
+                        )
                 )
+                .filter(transaction ->
+                        matchesUser(
+                                transaction.getUser(),
+                                request.userId()
+                        )
+                )
+                .filter(transaction ->
+                        matchesLoan(
+                                transaction,
+                                request.loanId()
+                        )
+                )
+                .filter(transaction ->
+                        matchesDeposit(
+                                transaction,
+                                request.depositId()
+                        )
+                )
+                .filter(transaction ->
+                        request.transactionType() == null
+                                || transaction.getType()
+                                == request.transactionType()
+                )
+                .map(this::buildFinancialTransactionReport)
                 .toList();
     }
 
@@ -412,7 +456,6 @@ public class ReportServiceImpl implements ReportService {
 
                 transaction.getDescription(),
 
-                // User
                 user != null
                         ? user.getId()
                         : null,
@@ -421,7 +464,6 @@ public class ReportServiceImpl implements ReportService {
                         ? user.getName()
                         : null,
 
-                // Loan
                 loan != null
                         ? loan.getId()
                         : null,
@@ -430,7 +472,6 @@ public class ReportServiceImpl implements ReportService {
                         ? loan.getLoanNumber()
                         : null,
 
-                // Deposit
                 deposit != null
                         ? deposit.getId()
                         : null,
@@ -453,12 +494,6 @@ public class ReportServiceImpl implements ReportService {
                 loanRepository.findAll();
 
 
-        // =====================================================
-        // TOTAL INTEREST ACCRUED
-        //
-        // Historical interest generated.
-        // =====================================================
-
         BigDecimal loanInterestContracted =
                 loans.stream()
                         .map(
@@ -470,10 +505,6 @@ public class ReportServiceImpl implements ReportService {
                                 BigDecimal::add
                         );
 
-
-        // =====================================================
-        // INTEREST ACTUALLY RECEIVED
-        // =====================================================
 
         BigDecimal loanInterestReceived =
                 loans.stream()
@@ -487,10 +518,6 @@ public class ReportServiceImpl implements ReportService {
                         );
 
 
-        // =====================================================
-        // INTEREST CURRENTLY OUTSTANDING
-        // =====================================================
-
         BigDecimal loanInterestOutstanding =
                 loans.stream()
                         .map(
@@ -502,10 +529,6 @@ public class ReportServiceImpl implements ReportService {
                                 BigDecimal::add
                         );
 
-
-        // =====================================================
-        // DEPOSIT INTEREST PAID
-        // =====================================================
 
         BigDecimal depositInterestPaid =
                 depositRepository.findAll()
@@ -524,55 +547,30 @@ public class ReportServiceImpl implements ReportService {
                         );
 
 
-        // =====================================================
-        // NET INTEREST PROFIT
-        //
-        // Only RECEIVED interest is considered profit.
-        //
-        // Outstanding interest is NOT profit yet.
-        // =====================================================
-
         BigDecimal netInterestProfit =
                 loanInterestReceived
-                        .subtract(
-                                depositInterestPaid
-                        );
+                        .subtract(depositInterestPaid);
 
-
-        // =====================================================
-        // AVAILABLE BALANCE
-        // =====================================================
 
         BigDecimal availableBalance =
                 financialTransactionService
                         .getAvailableBalance();
 
 
-        // =====================================================
-        // RESPONSE
-        // =====================================================
-
         return new ProfitReportResponse(
 
-                // Total interest generated
                 loanInterestContracted,
 
-                // Interest received
                 loanInterestReceived,
 
-                // Interest still outstanding
                 loanInterestOutstanding,
 
-                // Interest paid to depositors
                 depositInterestPaid,
 
-                // Net interest profit
                 netInterestProfit,
 
-                // Current cash balance
                 availableBalance,
 
-                // Net profit
                 netInterestProfit
         );
     }
@@ -612,7 +610,7 @@ public class ReportServiceImpl implements ReportService {
 
 
         // =====================================================
-        // DEPOSITS
+        // TOTAL DEPOSITED
         // =====================================================
 
         BigDecimal totalDeposited =
@@ -716,7 +714,7 @@ public class ReportServiceImpl implements ReportService {
 
 
         // =====================================================
-        // LOANS
+        // TOTAL LOAN PRINCIPAL
         // =====================================================
 
         BigDecimal totalLoanPrincipal =
@@ -732,7 +730,7 @@ public class ReportServiceImpl implements ReportService {
 
 
         // =====================================================
-        // PRINCIPAL OUTSTANDING
+        // LOAN PRINCIPAL OUTSTANDING
         // =====================================================
 
         BigDecimal loanPrincipalOutstanding =
@@ -748,7 +746,7 @@ public class ReportServiceImpl implements ReportService {
 
 
         // =====================================================
-        // TOTAL INTEREST ACCRUED
+        // TOTAL LOAN INTEREST
         // =====================================================
 
         BigDecimal totalLoanInterest =
@@ -764,7 +762,7 @@ public class ReportServiceImpl implements ReportService {
 
 
         // =====================================================
-        // INTEREST PAID
+        // LOAN INTEREST PAID
         // =====================================================
 
         BigDecimal loanInterestPaid =
@@ -781,8 +779,6 @@ public class ReportServiceImpl implements ReportService {
 
         // =====================================================
         // TOTAL LOAN REPAID
-        //
-        // Principal paid + interest paid
         // =====================================================
 
         BigDecimal totalPrincipalPaid =
@@ -803,11 +799,7 @@ public class ReportServiceImpl implements ReportService {
 
 
         // =====================================================
-        // TOTAL LOAN OUTSTANDING
-        //
-        // Principal outstanding
-        // +
-        // Interest outstanding
+        // LOAN INTEREST OUTSTANDING
         // =====================================================
 
         BigDecimal loanInterestOutstanding =
@@ -821,6 +813,10 @@ public class ReportServiceImpl implements ReportService {
                                 BigDecimal::add
                         );
 
+
+        // =====================================================
+        // TOTAL LOAN OUTSTANDING
+        // =====================================================
 
         BigDecimal totalLoanOutstanding =
                 loanPrincipalOutstanding
@@ -870,10 +866,6 @@ public class ReportServiceImpl implements ReportService {
 
                 user.getName(),
 
-                // -------------------------------
-                // Deposits
-                // -------------------------------
-
                 deposits.size(),
 
                 activeDeposits,
@@ -885,10 +877,6 @@ public class ReportServiceImpl implements ReportService {
                 activeDepositPrincipal,
 
                 depositInterestPaid,
-
-                // -------------------------------
-                // Loans
-                // -------------------------------
 
                 loans.size(),
 
@@ -910,5 +898,104 @@ public class ReportServiceImpl implements ReportService {
 
                 totalLoanOutstanding
         );
+    }
+
+
+    // =========================================================
+    // COMMON DATE FILTER
+    // =========================================================
+
+    private boolean isWithinDateRange(
+            LocalDate date,
+            LocalDate fromDate,
+            LocalDate toDate
+    ) {
+
+        if (date == null) {
+            return false;
+        }
+
+
+        // -----------------------------------------------------
+        // FROM DATE
+        // -----------------------------------------------------
+
+        if (fromDate != null
+                && date.isBefore(fromDate)) {
+
+            return false;
+        }
+
+
+        // -----------------------------------------------------
+        // TO DATE
+        // -----------------------------------------------------
+
+        if (toDate != null
+                && date.isAfter(toDate)) {
+
+            return false;
+        }
+
+
+        return true;
+    }
+
+
+    // =========================================================
+    // COMMON USER FILTER
+    // =========================================================
+
+    private boolean matchesUser(
+            User user,
+            Long userId
+    ) {
+
+        if (userId == null) {
+            return true;
+        }
+
+        return user != null
+                && user.getId().equals(userId);
+    }
+
+
+    // =========================================================
+    // LOAN FILTER
+    // =========================================================
+
+    private boolean matchesLoan(
+            FinancialTransaction transaction,
+            Long loanId
+    ) {
+
+        if (loanId == null) {
+            return true;
+        }
+
+        return transaction.getLoan() != null
+                && transaction.getLoan()
+                .getId()
+                .equals(loanId);
+    }
+
+
+    // =========================================================
+    // DEPOSIT FILTER
+    // =========================================================
+
+    private boolean matchesDeposit(
+            FinancialTransaction transaction,
+            Long depositId
+    ) {
+
+        if (depositId == null) {
+            return true;
+        }
+
+        return transaction.getDeposit() != null
+                && transaction.getDeposit()
+                .getId()
+                .equals(depositId);
     }
 }
